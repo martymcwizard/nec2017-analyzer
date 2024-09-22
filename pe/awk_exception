@@ -1,0 +1,26 @@
+awk '
+BEGIN { in_block = 0; block_text = "" }
+/^Exception/ {
+    in_block = 1
+    block_text = $0
+    next
+}
+in_block {
+    if (/^$/) {
+        # Blank line encountered; end of block
+        print block_text
+        in_block = 0
+        block_text = ""
+    } else {
+        # Continue accumulating lines
+        block_text = block_text " " $0
+    }
+    next
+}
+END {
+    # Handle case where file ends without a blank line
+    if (in_block && block_text != "") {
+        print block_text
+    }
+}
+' nec_2017.txt > exceptions_concatenated.txt

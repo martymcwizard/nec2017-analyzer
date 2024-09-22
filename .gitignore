@@ -1,0 +1,12 @@
+# Ignore input and output PDF/TXT files
+data/input/
+data/output/
+
+# General Python/Pytest ignores
+__pycache__/
+*.py[cod]
+*.egg-info/
+*.pytest_cache/
+
+# Poetry-specific
+poetry.lock

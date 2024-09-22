@@ -1,0 +1,20 @@
+[tool.poetry]
+name = "pe"
+version = "0.1.0"
+description = "NEC 2017 PDF Text Extraction"
+authors = ["martymcwizard <cto@thrivetech.ai>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.12"
+pdfminer-six = "^20240706"
+pypdf2 = "^3.0.1"
+pymupdf = "^1.24.10"
+
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.3.3"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
