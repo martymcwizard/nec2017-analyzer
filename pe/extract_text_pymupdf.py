@@ -334,8 +334,35 @@ egregious
 e01. after 430.7(A)(4) on page 70-298 there is a table with references and the algorithm picks up a section in one of 
 the table blocks and then mis-constructs the strings until section 430.8 rolls around.
  I guess I will have to test if a section bold flag is set if not then ignore. this is actually easier than I thought.
+ RESOLVED
 
  
+ optimization
+ the block_is_bold code only needs to be run if the pattern match is section or parens_number. Move the code into a 
+ function, 
+ call it, then process the returned flag. Probably decrease execution time by 50% or more
+ 
+good to fix
+g01. I don't capture the text of the articles. probably if I do an ARTICLE match I should take the entire block text? 
+
+g02. Some clauses are very long and actually do have multiple periods notably when another section is quoted. I 
+truncate all that. 
+I should remove that. 
+    840.106(A)(1)
+    (1) Where there is no mobile home service equipment located
+    within 9.
+    840.106(A)(2)
+    (2) Where there is no mobile home disconnecting means
+    grounded in accordance with 250.
+
+
+software engineering best practice
+s01. in the other script I have the option to read from a config file or pass in arguments for input, output, page 
+start and page end. THose are all hard coded here. I should make a module with that code, genericized? and use that 
+in all my projects
+s02. I have test cases from the reference extract script. I should verify that every test case can be found in this 
+document.
+
  interesting don't see use case yet
  i01. I can probably do sub-clauses by going line by line on a page.
  '''
