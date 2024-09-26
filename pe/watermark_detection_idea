@@ -1,0 +1,37 @@
+import fitz  # PyMuPDF
+
+def extract_watermarks(pdf_path):
+    doc = fitz.open(pdf_path)
+    watermarks = []
+    
+    for page_num in range(len(doc)):
+        page = doc.load_page(page_num)
+        text_instances = page.get_text("text")
+        
+        # Check if any text is potentially a watermark
+        # This is simplistic but will flag any large, faint, or background text
+        for block in page.get_text("dict")['blocks']:
+            if block.get('type') == 0:  # Text block
+                for line in block.get('lines'):
+                    for span in line.get('spans'):
+                        # Heuristic for watermarks: check opacity or large font size
+                        if span.get('size') > 20 or span.get('flags') == 256:  # Check large font or special flags
+                            watermarks.append((page_num + 1, span.get('text')))
+        
+        # Check for images (which may be logos/watermarks)
+        images = page.get_images(full=True)
+        if images:
+            watermarks.append((page_num + 1, "Image watermark detected"))
+
+    doc.close()
+    return watermarks
+
+if __name__ == "__main__":
+    pdf_path = "your_pdf_file.pdf"
+    watermarks = extract_watermarks(pdf_path)
+    
+    if watermarks:
+        for wm in watermarks:
+            print(f"Watermark found on page {wm[0]}: {wm[1]}")
+    else:
+        print("No watermarks detected")

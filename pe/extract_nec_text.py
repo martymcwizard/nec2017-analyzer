@@ -1,7 +1,8 @@
 # pe/extract_nec_text.py
 
 import os
-from .extract_text_pymupdf import extract_text
+#from .extract_text_pymupdf import extract_text
+import .extract_text_pymupdf
 
 def main():
     # Define paths

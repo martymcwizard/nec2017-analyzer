@@ -5,6 +5,10 @@ description = "NEC 2017 PDF Text Extraction"
 authors = ["martymcwizard <cto@thrivetech.ai>"]
 readme = "README.md"
 
+[tool.poetry.scripts]
+extract-ref = "pe.extract_ref_by_page:main"
+extract-text = "pe.extract_text_pymupdf:main"
+
 [tool.poetry.dependencies]
 python = "^3.12"
 pdfminer-six = "^20240706"
