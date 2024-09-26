@@ -6,17 +6,18 @@ extracting text block by block since I have invested in using the start of the b
 
 #added to pyproject.toml
 [tool.poetry.scripts]
-extract-ref = "pe.extract_ref_by_page:main"
+...
 extract-text = "pe.extract_text_pymupdf:main"
 
 poetry run extract-text 
 
 I'm not set up to use this right now
-data/input/nec_2017r.pdf data/output/latest_text_extract.txt --start-page 32 --end-page 50
-Look down around line 137 instead
+poetry run extract-text data/input/nec_2017r.pdf data/output/latest_text_extract.txt --start-page 32 --end-page 50
+Look for 'HARD CODED'
 '''
 
 import fitz  # PyMuPDF
+# https://pymupdf.readthedocs.io/en/latest/recipes-text.html#how-to-analyze-font-characteristics
 from itertools import islice
 import re
 from pathlib import Path
@@ -41,8 +42,6 @@ pattern = re.compile(r'''
     |
     ^\((?P<subparagraph>[a-z])\)                  # Parentheses with lowercase letter (e.g., (a))
 ''', re.VERBOSE)
-
-
 
 #for use later for 2,3.2 'Definitions'
 #pattern_definitions
@@ -118,7 +117,6 @@ def update_reference(ref, level_key, level_type):
 
     return ref, ref_str
 
-
 '''
 # Example usage:
 ref = OrderedDict()
@@ -128,11 +126,12 @@ ref = update_reference(ref, "(5)", "paragraph")
 ref = update_reference(ref, "(b)", "subparagraph")
 ref = update_reference(ref, "(1)", "clause")  # Update for new clause
 ref = update_reference(ref, "(E)", "subsection")  # New subsection, clearing the lower levels
-
 '''
 
-def extract_text(pdf_path, start_page=45, end_page=None):
+def extract_text(pdf_path, start_page=1, end_page=None):
 
+    #HARD-CODED
+    start_page = 32
     end_page = 680 #680
 
     text_content = []
@@ -144,7 +143,6 @@ def extract_text(pdf_path, start_page=45, end_page=None):
     # Adjust end_page if necessary
     if end_page is None or end_page > total_pages:
         end_page = total_pages
-
 
     # Process each page
     for page_num in range(start_page - 1, end_page):
@@ -248,7 +246,8 @@ def extract_text(pdf_path, start_page=45, end_page=None):
 
                 # Determine if it's bold or not
                 if block_is_bold:
-                    #print(f"Block starts with bold text")
+                    print(f"Block starts with bold text")
+                    print(f"Verify this is a paragraph not a clause")
                     # Handle paragraphs here
                     #print(f"paragraph match: {result}")
                     reference, reference_str = update_reference(reference, result, "paragraph")
@@ -258,7 +257,7 @@ def extract_text(pdf_path, start_page=45, end_page=None):
                     page_text += '.'.join(text.split('.')[:1]) + ".\n" #these don't have a first period
 
                 else:
-                    #print(f"Block starts with normal text")
+                    print(f"Block starts with normal text")
                     # Handle clauses here
                     #print(f"clause match: {result}")
                     reference, reference_str = update_reference(reference, result, "clause")
@@ -300,8 +299,9 @@ def main():
     # Define paths
     print(f"pe/extract_text_pymupdf.py program started")
     ## the letter r indicates that is my mac preview reprint
+    #HARD CODED
     pdf_path =  Path('data/input/nec_2017r.pdf')
-    output_path = Path('data/output/nec_2017_extracted_1.txt')
+    output_path = Path('data/output/nec_2017_extracted_1_bold-verbose.txt')
 
     # Extract text
     extracted_text = extract_text(pdf_path)
@@ -344,6 +344,10 @@ the table blocks and then mis-constructs the strings until section 430.8 rolls a
  
 good to fix
 g01. I don't capture the text of the articles. probably if I do an ARTICLE match I should take the entire block text? 
+Alternatively just grab the TOC! From:
+https://pymupdf.readthedocs.io/en/latest/tutorial.html
+There are two utility scripts in the repository that toc import (PDF only) resp. toc export table of contents 
+from resp. to CSV files.
 
 g02. Some clauses are very long and actually do have multiple periods notably when another section is quoted. I 
 truncate all that. 
@@ -354,7 +358,7 @@ I should remove that.
     840.106(A)(2)
     (2) Where there is no mobile home disconnecting means
     grounded in accordance with 250.
-
+Also note that there are line breaks.
 
 software engineering best practice
 s01. in the other script I have the option to read from a config file or pass in arguments for input, output, page 
@@ -365,4 +369,7 @@ document.
 
  interesting don't see use case yet
  i01. I can probably do sub-clauses by going line by line on a page.
- '''
+
+ Clean-up 
+ look for ### these can simply be deleted
+'''
