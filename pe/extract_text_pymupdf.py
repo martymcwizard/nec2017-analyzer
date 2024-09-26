@@ -9,7 +9,11 @@ extracting text block by block since I have invested in using the start of the b
 extract-ref = "pe.extract_ref_by_page:main"
 extract-text = "pe.extract_text_pymupdf:main"
 
-poetry run extract-text data/input/nec_2017r.pdf data/output/latest_text_extract.txt --start-page 32 --end-page 50
+poetry run extract-text 
+
+I'm not set up to use this right now
+data/input/nec_2017r.pdf data/output/latest_text_extract.txt --start-page 32 --end-page 50
+Look down around line 137 instead
 '''
 
 import fitz  # PyMuPDF
@@ -110,7 +114,7 @@ def update_reference(ref, level_key, level_type):
 
     # Construct the reference string with parentheses for all levels except the section level
     ref_str = ''.join(f"({key.split('-')[0]})" if idx != 0 else key.split('-')[0] for idx, key in enumerate(ref.keys()))
-    #print("Assembled reference string:", reference_str)
+    #print("Assembled reference string:", ref_str)
 
     return ref, ref_str
 
@@ -127,10 +131,9 @@ ref = update_reference(ref, "(E)", "subsection")  # New subsection, clearing the
 
 '''
 
+def extract_text(pdf_path, start_page=45, end_page=None):
 
-def extract_text(pdf_path, start_page=32, end_page=None):
-
-    end_page = 681
+    end_page = 680 #680
 
     text_content = []
     reference = OrderedDict()
@@ -142,25 +145,42 @@ def extract_text(pdf_path, start_page=32, end_page=None):
     if end_page is None or end_page > total_pages:
         end_page = total_pages
 
-    #for page_num, page in enumerate(islice(doc, 31, 900), start=32):
-
-        
 
     # Process each page
     for page_num in range(start_page - 1, end_page):
         page_text = ''
         page = doc.load_page(page_num)
 
-        blocks = page.get_text("blocks")
+        # Get both block-level text and span-level details
+        blocks_dict = page.get_text("dict")["blocks"]  # For detailed font info
+        blocks = page.get_text("blocks")               # For block-level text content
 
-        for b in blocks[1:]:
-            # Correctly unpack the block tuple
-            x0, y0, x1, y1, text, block_no, block_type = b
+        # Ensure that blocks_dict and blocks are processed in parallel
+        for i, block in enumerate(blocks[1:]):  # Using enumerate to couple the two
+            # Unpack block tuple (block-level text)
+            x0, y0, x1, y1, text, block_no, block_type = block
 
+            # Get the corresponding block from blocks_dict for span-level font checking
+            block_dict = blocks_dict[i + 1]  # Use i+1 because you are skipping the first block in blocks
+
+            # Scan through each span in the block_dict to check for bold text
+            block_is_bold = False
+            for line in block_dict["lines"]:
+                for span in line["spans"]:
+                    font_flags = span["flags"]
+
+                    # Check if the span contains bold text
+                    if font_flags & (2 ** 4):  # Bold is bit 4 (2 ** 4 = 16)
+                        block_is_bold = True
+                        break  # No need to check more spans if we found bold text
+
+                if block_is_bold:
+                    #print(f"\nBlock on page {page_num -2} contains bold text.")
+                    #print(f"{text}")
+                    break  # Exit loop once a bold span is found in the block
 
             text = text.strip()  # Removes leading/trailing whitespace
-            text = re.sub(r'^N\s+', '', text)  # Removes 'N ' at the start
-
+            
             # Apply logic only to block 1
             if block_no == 1:
                 # Normalize the en dash to a hyphen and remove leading/trailing whitespace
@@ -172,35 +192,38 @@ def extract_text(pdf_path, start_page=32, end_page=None):
                 #print(f"what matched: {page_number_match}")
                 if page_number_match:
                     # Append the formatted page number
-                    page_text += "PAGE NUMBER " + page_number_match.group(0).replace(' ', '') + "\n"
-                    #print(f"\n" + "PAGE NUMBER " + page_number_match.group(0))
+                    page_text += "\nPAGE NUMBER " + page_number_match.group(0).replace(' ', '') + "\n"
+                    print(f"\n" + "PAGE NUMBER " + page_number_match.group(0))
                 # Skip adding the redundant footer
                 continue
 
+            text = re.sub(r'^N\s+', '', text)  # Removes 'N ' at the start
 
             # Safely handle the case where match_patterns returns None
             group_name, result = match_patterns(text) or (None, None)
     
             if group_name == "full":
+                #Here, if it's an article I should switch to extracting lines from the block?
                 #print(f"Full line match: {text}")
                 # Replace newlines with spaces for these specific matches
                 text = text.replace('\n', ' ').replace('\r', ' ')  # Replace both types of line breaks
                 text = ' '.join(text.split())  # Remove any extra spaces caused by multiple line breaks
-                print(f"result match returned: {result}")
-                print(f"Full line match: {text}")
+                #print(f"result match returned: {result}")
+                #print(f"Full line match: {text}")
                 page_text += text + "\n"
 
             elif group_name =="part_header":
                 page_text += '.'.join(text.split('.')[:2]) + ".\n"
 
             elif group_name == "section":
-                #print(f"Section match: {result}")
-                reference, reference_str = update_reference(reference, result, group_name)
-                
-                #Do I actually have sections that cross two lines?  Shouldn't this be in full line match? or even up at the top before we do a group name? 
-                text = text.replace('\n', ' ').replace('\r', ' ')  # Replace both types of line breaks
-                text = ' '.join(text.split())  # Remove any extra spaces caused by multiple line breaks
-                page_text += '.'.join(text.split('.')[:2]) + ".\n"
+                if block_is_bold:
+                    #print(f"Section match: {result}")
+                    reference, reference_str = update_reference(reference, result, group_name)
+                    
+                    # Do I actually have sections that cross two lines?  Shouldn't this be in full line match? or even up at the top before we do a group name? 
+                    text = text.replace('\n', ' ').replace('\r', ' ')  # Replace both types of line breaks
+                    text = ' '.join(text.split())  # Remove any extra spaces caused by multiple line breaks
+                    page_text += '.'.join(text.split('.')[:2]) + ".\n"
 
             elif group_name == "subsection":
                 #print(f"subsection match: {result}")
@@ -217,12 +240,26 @@ def extract_text(pdf_path, start_page=32, end_page=None):
                 page_text += text
 
             elif group_name == "parens_number":
-                
-                period_count = text.count('.')
-                colon_count = text.count(':')
+                #print(f"\nWe have a number!: {group_name} {result}")
+                # Check the formatting of the first span (to see if it's bold)
+                # Only do this if it is a paragraph or clause
+                ###first_span = block_dict["lines"][0]["spans"][0]
+                ###font_flags = first_span["flags"]
 
-                if period_count <= 1 and colon_count == 0:
-                    #this is the second of (1)(1)
+                # Determine if it's bold or not
+                if block_is_bold:
+                    #print(f"Block starts with bold text")
+                    # Handle paragraphs here
+                    #print(f"paragraph match: {result}")
+                    reference, reference_str = update_reference(reference, result, "paragraph")
+                    page_text += reference_str + "\n"
+                    # Ensure that there is no newline immediately after the closing parenthesis
+                    text = re.sub(r'\)\n+', ') ', text)
+                    page_text += '.'.join(text.split('.')[:1]) + ".\n" #these don't have a first period
+
+                else:
+                    #print(f"Block starts with normal text")
+                    # Handle clauses here
                     #print(f"clause match: {result}")
                     reference, reference_str = update_reference(reference, result, "clause")
                     page_text += reference_str + "\n"
@@ -246,15 +283,7 @@ def extract_text(pdf_path, start_page=32, end_page=None):
                     text = text.replace('! ', '')  # This will remove any occurrences of "! " in the text
 
                     page_text += text
-                else:
-                    #this is the first of (1)(1)
-                    #print(f"paragraph match: {result}")
-                    reference, reference_str = update_reference(reference, result, "paragraph")
-                    page_text += reference_str + "\n"
-                    # Ensure that there is no newline immediately after the closing parenthesis
-                    text = re.sub(r'\)\n+', ') ', text)
-                    page_text += '.'.join(text.split('.')[:1]) + ".\n" #these don't have a first period
-
+ 
             elif group_name == "exception":
                 text = text.replace('\n', ' ').replace('\r', ' ')  # Replace both types of line breaks
                 text = ' '.join(text.split())  # Remove any extra spaces caused by multiple line breaks
@@ -272,7 +301,7 @@ def main():
     print(f"pe/extract_text_pymupdf.py program started")
     ## the letter r indicates that is my mac preview reprint
     pdf_path =  Path('data/input/nec_2017r.pdf')
-    output_path = Path('data/output/nec_2017_extracted_.txt')
+    output_path = Path('data/output/nec_2017_extracted_1.txt')
 
     # Extract text
     extracted_text = extract_text(pdf_path)
@@ -298,3 +327,15 @@ with open(args.pdf_out_path, 'w', encoding='utf-8') as f:
 
 
 '''
+
+'''
+TO-DO
+egregious
+e01. after 430.7(A)(4) on page 70-298 there is a table with references and the algorithm picks up a section in one of 
+the table blocks and then mis-constructs the strings until section 430.8 rolls around.
+ I guess I will have to test if a section bold flag is set if not then ignore. this is actually easier than I thought.
+
+ 
+ interesting don't see use case yet
+ i01. I can probably do sub-clauses by going line by line on a page.
+ '''
